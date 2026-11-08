@@ -84,11 +84,15 @@ public struct OutputOptions: OptionSet, Sendable {
     /// The `NameIdentifier` actool computes for `AppIcon` (6849) instead of
     /// the CRC32-based one used for other names.
     public static let actoolIdentifiers = OutputOptions(rawValue: 1 << 3)
+    /// For a single-size (1024x1024 universal) app icon, store only the master
+    /// in the catalog, once for iPhone and once for iPad, as actool 26 does.
+    /// The smaller sizes are still generated as loose PNGs for the bundle.
+    public static let singleSizeMaster = OutputOptions(rawValue: 1 << 4)
 
     /// The original output of this library.
     public static let legacy: OutputOptions = []
     /// The structure of actool 26.5's output, without claiming to be it.
-    public static let actoolStructure: OutputOptions = [.dimension1Key, .multisizeIcons, .actoolIdentifiers]
+    public static let actoolStructure: OutputOptions = [.dimension1Key, .multisizeIcons, .actoolIdentifiers, .singleSizeMaster]
     /// Everything, including the tool strings.
     public static let actool26_5: OutputOptions = actoolStructure.union(.actoolVersionStrings)
 }
@@ -131,9 +135,19 @@ public struct XCAssetCompiler: Sendable {
         var appIconBundle: AppIconBundle?
         if let appIcon = loaded.appIcon {
             let plist = try AppIconPlistEmitter.emit(appIcon)
+            var catalogFiles = plist.iconFiles
+            let isSingleSize = appIcon.contents.images.contains { $0.isSingleSizeMaster }
+            if options.contains(.singleSizeMaster), isSingleSize,
+               let master = plist.iconFiles.first(where: { $0.idiom == .marketing }) {
+                catalogFiles = [Idiom.iphone, .ipad].map { idiom in
+                    var file = master
+                    file.idiom = idiom
+                    return file
+                }
+            }
             renditions.append(contentsOf: try ImageRenderer.appIconRenditions(
                 for: appIcon,
-                files: plist.iconFiles,
+                files: catalogFiles,
                 options: options
             ))
 
