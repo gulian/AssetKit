@@ -94,10 +94,10 @@ struct CARInspector {
     }
 }
 
-private func be32(_ d: Data, _ o: Int) -> UInt32 {
+func be32(_ d: Data, _ o: Int) -> UInt32 {
     (0..<4).reduce(UInt32(0)) { ($0 << 8) | UInt32(d[d.startIndex + o + $1]) }
 }
-private func be16(_ d: Data, _ o: Int) -> UInt16 {
+func be16(_ d: Data, _ o: Int) -> UInt16 {
     (UInt16(d[d.startIndex + o]) << 8) | UInt16(d[d.startIndex + o + 1])
 }
 func u32(_ d: Data, _ o: Int) -> UInt32 {
