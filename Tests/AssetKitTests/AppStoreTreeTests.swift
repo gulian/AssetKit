@@ -51,6 +51,32 @@ struct AppStoreTreeTests {
         }
     }
 
+    @Test("Keys of different lengths: variable length, no key copy")
+    func variableKeyLength() async throws {
+        let catalog = try singleSizeCatalog()
+        defer { try? FileManager.default.removeItem(at: catalog) }
+        let set = catalog.appendingPathComponent("HeroBackgroundImageLarge.imageset", isDirectory: true)
+        try FileManager.default.createDirectory(at: set, withIntermediateDirectories: true)
+        try icon1024().write(to: set.appendingPathComponent("hero.png"))
+        let json = #"{ "images": [ { "filename": "hero.png", "idiom": "universal", "scale": "1x" } ], "info": { "author": "xcode", "version": 1 } }"#
+        try Data(json.utf8).write(to: set.appendingPathComponent("Contents.json"))
+        let result = try await XCAssetCompiler(deploymentTarget: "17.0").compile(catalog: catalog)
+        let car = CARInspector(result.carData)
+
+        let facets = try #require(car.variable("FACETKEYS"))
+        #expect(be32(facets, 21) == 0xFFFF_FFFF)
+        let leaf = car.block(Int(be32(facets, 8)))
+        #expect(leaf.count == 4096)
+        let entries = car.treeEntries("FACETKEYS")
+        #expect(Set(entries.map { String(decoding: $0.key, as: UTF8.self) }) == ["AppIcon", "HeroBackgroundImageLarge"])
+        let start = 12 + 8 * entries.count
+        #expect(leaf[leaf.startIndex + start..<leaf.startIndex + 4096].allSatisfy { $0 == 0 })
+
+        // the rendition keys still all have the same length
+        let renditions = try #require(car.variable("RENDITIONS"))
+        #expect(be32(renditions, 21) == 20)
+    }
+
     @Test("A single-size icon stores only the master, for iPhone and iPad")
     func singleSizeMaster() async throws {
         let (car, result) = try await compile()
