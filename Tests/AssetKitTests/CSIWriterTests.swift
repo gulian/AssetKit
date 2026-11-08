@@ -54,10 +54,13 @@ struct CSIWriterTests {
     func colorBody() {
         let body = ColorBody(red: 1, green: 0, blue: 0.5, alpha: 1, colorSpaceID: 0)
         let data = CSIWriter.color(name: "Accent", body: body)
-        // CSI header is 184 bytes; body starts at offset 184
-        #expect(data.count >= 184 + 4 + 4 + 4 + 4 + 8 * 4)
-        let payloadStart = 184
+        // CSI header is 184 bytes, then the TVL (1004 + 1006, 28 bytes), then the body
+        #expect(data.count == 184 + 28 + 4 + 4 + 4 + 4 + 8 * 4)
+        let payloadStart = 184 + 28
+        // 'COLR' as a little-endian constant, like actool: file bytes "RLOC"
         let magic = data.subdata(in: payloadStart..<(payloadStart + 4))
-        #expect(Array(magic) == Array("COLR".utf8))
+        #expect(Array(magic) == Array("RLOC".utf8))
+        let version = data.subdata(in: payloadStart + 4..<payloadStart + 8)
+        #expect(Array(version) == [1, 0, 0, 0])
     }
 }

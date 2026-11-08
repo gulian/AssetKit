@@ -141,28 +141,31 @@ enum CSIWriter {
         return header + tvl + body.data
     }
 
+    /// Named color, laid out like actool's (from xtool-org/AssetKit#5): header
+    /// scale, colorSpace and pixelFormat all zero; TVL 1004 (zeros) and 1006 (1).
     static func color(name: String, body: ColorBody) -> Data {
         let payload = colorBody(body: body)
+        let tvl = CSITVL.encode([.sliceScaleZero, .bitmapFlag])
         let header = CSIHeader.encode(
             renditionFlags: 0,
             width: 0,
             height: 0,
-            scaleFactor: 100,
+            scaleFactor: 0,
             pixelFormat: 0,
-            colorSpace: UInt32(body.colorSpaceID),
+            colorSpace: 0,
             layout: .namedColor,
             name: name,
-            tvlLength: 0,
-            bitmapCount: 0,
+            tvlLength: UInt32(tvl.count),
+            bitmapCount: 1,
             renditionLength: UInt32(payload.count)
         )
-        return header + payload
+        return header + tvl + payload
     }
 
     private static func colorBody(body: ColorBody) -> Data {
         var w = ByteWriter()
-        w.writeFourCC("COLR")
-        w.writeLE(UInt32(0))                    // version
+        w.writeLE(UInt32(0x434F_4C52))          // 'COLR' as an LE constant (file bytes RLOC)
+        w.writeLE(UInt32(1))                    // version
         w.writeLE(UInt32(body.colorSpaceID))    // colorSpaceID with flag bits
         w.writeLE(UInt32(4))                    // numberOfComponents
         for component in [body.red, body.green, body.blue, body.alpha] {

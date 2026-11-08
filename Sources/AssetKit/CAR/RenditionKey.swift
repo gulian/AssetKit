@@ -41,6 +41,9 @@ struct RenditionKey: Hashable, Sendable {
         /// App icon "multisize image set" index: lists the sizes of one
         /// (idiom, subtype) group. Carries no pixels.
         case iconSizes = 218
+        /// Named colors (`.colorset`): actool keys them at element 85, part 217
+        /// (from xtool-org/AssetKit#5).
+        case color = 217
     }
 
     init(rendition: Rendition, options: OutputOptions = .legacy) {
@@ -66,8 +69,10 @@ struct RenditionKey: Hashable, Sendable {
                 self.dimension2 = 0
             }
         case .color:
-            self.element = 0
-            self.part = 0
+            // actool keys named colors at element 85 / part 217, scale 1.
+            self.element = Element.bitmap.rawValue
+            self.part = Part.color.rawValue
+            self.scale = 1
             self.dimension2 = 0
         case .preservedSource(let body):
             self.element = Element.bitmap.rawValue
